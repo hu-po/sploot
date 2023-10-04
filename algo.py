@@ -7,7 +7,10 @@ def sample_view():
 
 def init_scene():
     """ Initialize the scene. """
-    M: np.ndarray = None # RS, where R is rotation and S is scale
+    q: np.ndarray = None # quaternion
+    R: np.ndarray = func(q) # rotation
+    S: np.ndarray = None # scale
+    M: np.ndarray = func(R, S)
     S: np.ndarray = None # covariances
     C: np.ndarray = None # colors
     A: np.ndarray = None # opacities
