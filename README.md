@@ -15,6 +15,9 @@ https://developers.google.com/earth-engine/guides/python_install
 NASA APIs
 https://api.nasa.gov/
 
+You can find orbital data from Nasa here
+https://ode.rsl.wustl.edu/mars/productsearch
+
 ### Algos from original paper
 
 https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
