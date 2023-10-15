@@ -1,62 +1,53 @@
-import numpy as np
 import os
-from lightglue import LightGlue, SuperPoint, DISK
-from lightglue.utils import load_image, rbd
-import torch
+import uuid
+import replicate
+import numpy as np
+import urllib.request
+from PIL import Image
+from io import BytesIO
 
-def process_images(
-    image_path_0: str, 
-    image_path_1: str, 
-    feature_type: str = 'superpoint', 
-    max_num_keypoints: int = 2048
-) -> np.ndarray:
-    """Process two images and return matched points as an array.
-    
-    Args:
-        image_path_0 (str): Path to the first image.
-        image_path_1 (str): Path to the second image.
-        feature_type (str, optional): Type of feature to use. Defaults to 'superpoint'.
-        max_num_keypoints (int, optional): Maximum number of keypoints to use. Defaults to 2048.
-    
-    Returns:
-        np.ndarray: Array of matched points.
-    """
-    if not os.path.exists(image_path_0) or not os.path.exists(image_path_1):
-        raise FileNotFoundError("One or both image paths are invalid.")
+def generate_images(prompts: list = [], height: int = 1024, width: int = 1024, save_images: bool = False) -> np.ndarray:
+    outputs = []
+    # Generate a unique id for this generation session
+    session_id = uuid.uuid4()
+    for i, prompt in enumerate(prompts):
+        kwargs = {
+            "model_version": "stability-ai/sdxl:c221b2b8ef527988fb59bf24a8b97c4561f1c671f73bd389f866bfb27c061316",
+            "input": {
+                "width": width,
+                "height": height,
+                "prompt": prompt,
+                "seed": 42,
+                "refine": "expert_ensemble_refiner",
+                "scheduler": "KarrasDPM",
+                "num_outputs": 1,
+                "guidance_scale": 7.5,
+                "high_noise_frac": 0.8,
+                "prompt_strength": 0.8,
+                "num_inference_steps": 50
+            }
+        }
+        output = replicate.run(**kwargs)
+        # Download the image and convert it to a numpy array
+        with urllib.request.urlopen(output[0]) as url:
+            f = BytesIO(url.read())
+        img = Image.open(f)
+        img_array = np.array(img)
+        outputs.append(img_array)
 
-    if not torch.cuda.is_available():
-        raise SystemError("CUDA is not available on this system.")
+        # Save the image locally if save_images is True
+        if save_images:
+            save_path = os.path.join(os.getenv('DATA_DIR', '.'), f'{session_id}_{i+1}of{len(prompts)}.png')
+            img.save(save_path)
 
-    if feature_type not in ['superpoint', 'disk']:
-        raise ValueError(f"Invalid feature_type: {feature_type}")
-
-    if feature_type == 'superpoint':
-        extractor = SuperPoint(max_num_keypoints).eval().cuda()
-        matcher = LightGlue(features='superpoint').eval().cuda()
-    elif feature_type == 'disk':
-        extractor = DISK(max_num_keypoints).eval().cuda()
-        matcher = LightGlue(features='disk').eval().cuda()
-
-    image0 = load_image(image_path_0).cuda()
-    image1 = load_image(image_path_1).cuda()
-
-    feats0 = extractor.extract(image0)
-    feats1 = extractor.extract(image1)
-
-    matches01 = matcher({'image0': feats0, 'image1': feats1})
-    feats0, feats1, matches01 = [rbd(x) for x in [feats0, feats1, matches01]]
-
-    matches = matches01['matches']
-    points0 = feats0['keypoints'][matches[..., 0]]
-    points1 = feats1['keypoints'][matches[..., 1]]
-
-    return np.array([points0, points1])
+    # Stack all images into a single numpy tensor
+    return np.stack(outputs, axis=0)
 
 if __name__ == "__main__":
     # Test the function locally
-    image_path_0 = "test_image_0.jpg"
-    image_path_1 = "test_image_1.jpg"
-    feature_type = "superpoint"
-    max_num_keypoints = 2048
-    result = process_images(image_path_0, image_path_1, feature_type, max_num_keypoints)
+    prompts = [
+        "3/4 portrait of cat facing left",
+        "3/4 portrait of cat facing right"
+    ]
+    result = generate_images(prompts, height=512, width=512, save_images=True)
     print(result)
