@@ -43,7 +43,7 @@ def generate_images(prompts: list = [],
     return outputs
 
 if __name__ == "__main__":
-    subject = "white bengal cat sitting down"  # You can replace this with any other subject
+    subject = "cell phone image of a single can of coca cola on a wooden table"  # You can replace this with any other subject
     # Test the function locally
     prompts = [
         # DALLE3 prompts
@@ -63,7 +63,6 @@ if __name__ == "__main__":
         f"Direct frontal view of {subject}",
         f"Top-down aerial view of {subject}",
         f"Distinct profile view of {subject}",
-        f"Isometric view of {subject}",
         f"Low-angle view of {subject}",
         f"High-angle view of {subject}",
         f"Rear view of {subject}",
