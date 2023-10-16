@@ -36,26 +36,40 @@ def generate_images(prompts: list = [],
         img = Image.open(f)
 
         # Save the image locally
-        save_path = os.path.join(os.getenv('DATA_DIR', '.'), f'{session_id}_{i+1}of{len(prompts)}.png')
+        save_path = os.path.join('/home/oop/dev/data', f'{session_id}_{i+1}of{len(prompts)}.png')
         img.save(save_path)
         outputs.append((save_path, prompt))
 
     return outputs
 
 if __name__ == "__main__":
-    subject = "white bengal cat"  # You can replace this with any other subject
+    subject = "white bengal cat sitting down"  # You can replace this with any other subject
     # Test the function locally
     prompts = [
-        f"Dynamic 3/4 view of {subject} facing left with a clear emphasis on depth and perspective.",
-        f"Sharp 3/4 view of {subject} facing right, capturing the subtle contours and details.",
-        f"Direct frontal view of {subject}, offering a symmetrical and straightforward perspective.",
-        f"Top-down aerial view of {subject}, showcasing the subject from a bird's-eye perspective.",
-        f"Distinct profile view of {subject} facing left, highlighting the side silhouette.",
-        f"Isometric view of {subject}, creating a three-dimensional effect.",
-        f"Low-angle view of {subject}, looking up, emphasizing its dominance and stature.",
-        f"High-angle view of {subject}, looking down, making the subject appear smaller or more vulnerable.",
-        f"Rear view of {subject}, focusing on the back and hindquarters, capturing a unique perspective.",
-        f"Diagonal front-left view of {subject}, blending both frontal and profile features.",
+        # DALLE3 prompts
+        # f"Dynamic 3/4 view of {subject} facing left with a clear emphasis on depth and perspective.",
+        # f"Sharp 3/4 view of {subject} facing right, capturing the subtle contours and details.",
+        # f"Direct frontal view of {subject}, offering a symmetrical and straightforward perspective.",
+        # f"Top-down aerial view of {subject}, showcasing the subject from a bird's-eye perspective.",
+        # f"Distinct profile view of {subject} facing left, highlighting the side silhouette.",
+        # f"Isometric view of {subject}, creating a three-dimensional effect.",
+        # f"Low-angle view of {subject}, looking up, emphasizing its dominance and stature.",
+        # f"High-angle view of {subject}, looking down, making the subject appear smaller or more vulnerable.",
+        # f"Rear view of {subject}, focusing on the back and hindquarters, capturing a unique perspective.",
+        # f"Diagonal front-left view of {subject}, blending both frontal and profile features.",
+        # Human prompts
+        f"Dynamic 3/4 view of {subject}",
+        f"Sharp 3/4 view of {subject}",
+        f"Direct frontal view of {subject}",
+        f"Top-down aerial view of {subject}",
+        f"Distinct profile view of {subject}",
+        f"Isometric view of {subject}",
+        f"Low-angle view of {subject}",
+        f"High-angle view of {subject}",
+        f"Rear view of {subject}",
+        f"Diagonal front-left view of {subject}",
+
+
     ]
-    result = generate_images(prompts, height=512, width=512, save_images=True)
+    result = generate_images(prompts, height=512, width=512)
     print(result)
