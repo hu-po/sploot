@@ -1,7 +1,8 @@
 from tinygrad.tensor import Tensor
-from dataclasses import dataclass
 
 """
+Definitions
+
 Screen Space - [u, v]
 units in screen space are meter/pixel
 pixels are each of size pu x pv
@@ -9,141 +10,99 @@ pixels are each of size pu x pv
 World Space - [x, y, z]
 units are in meters
 
+Gaussian - [mu, sigma]
+general formulation
+https://en.wikipedia.org/wiki/Normal_distribution
+
+Pinhole Camera Model
+https://en.wikipedia.org/wiki/Pinhole_camera_model
 
 
 """
 
-
 def rotation_x(theta: float) -> Tensor:
-    return Tensor(
-        [
-            [1, 0, 0, 0],
-            [0, Tensor.cos(theta), -Tensor.sin(theta), 0],
-            [0, Tensor.sin(theta), Tensor.cos(theta), 0],
-            [0, 0, 0, 1],
-        ]
-    )
-
+    # build rotation matrix around x axis by theta radians
+    return Tensor([[1, 0, 0, 0], [0, Tensor.cos(theta), -Tensor.sin(theta), 0], [0, Tensor.sin(theta), Tensor.cos(theta), 0], [0, 0, 0, 1]])
 
 def rotation_y(theta: float) -> Tensor:
-    return Tensor(
-        [
-            [Tensor.cos(theta), 0, Tensor.sin(theta), 0],
-            [0, 1, 0, 0],
-            [-Tensor.sin(theta), 0, Tensor.cos(theta), 0],
-            [0, 0, 0, 1],
-        ]
-    )
-
+    # build rotation matrix around y axis by theta radians
+    return Tensor([[Tensor.cos(theta), 0, Tensor.sin(theta), 0], [0, 1, 0, 0], [-Tensor.sin(theta), 0, Tensor.cos(theta), 0], [0, 0, 0, 1]])
 
 def rotation_z(theta: float) -> Tensor:
-    return Tensor(
-        [
-            [Tensor.cos(theta), -Tensor.sin(theta), 0, 0],
-            [Tensor.sin(theta), Tensor.cos(theta), 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ]
-    )
-
+    # build rotation matrix around z axis by theta radians
+    return Tensor([[Tensor.cos(theta), -Tensor.sin(theta), 0, 0], [Tensor.sin(theta), Tensor.cos(theta), 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
 def translation(tx: float, ty: float, tz: float) -> Tensor:
+    # build translation matrix by tx, ty, tz in meters
     return Tensor([[1, 0, 0, tx], [0, 1, 0, ty], [0, 0, 1, tz], [0, 0, 0, 1]])
 
-
-def intrinsic_matrix(
-    f: float,  # Focal length
+def intrinsic(
+    focal: float,  # Focal length of camera in meters
     px: float,  # Pixel scaling factor in the x direction
     py: float,  # Pixel scaling factor in the y direction
     cx: float,  # Principal point offset in the x direction
     cy: float,  # Principal point offset in the y direction
-) -> np.ndarray:
-    matrix = np.array(
-        [[f / px, 0, cx, 0], [0, f / py, cy, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
-    )
-    return matrix
+) -> Tensor:
+    return Tensor([[f / px, 0, cx, 0], [0, f / py, cy, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
+def extrinsic() -> Tensor:
+    # TODO: These should come from the LMM. Text input and rotation, translation matrix output, which would be used here.
+    # In the meantime, just use Identity
+    return Tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, -1], [0, 0, 0, 1]])
 
-def project():
+def view(intrinsic: Tensor, extrinsic: Tensor) -> Tensor:
+    # view matrix is combination of intrinsic and extrinsic, can be used to project from world space to screen space
+    return intrinsic @ extrinsic
+
+def project(
+    point: Tensor, # 3d point in world space [x, y, z]
+    view: Tensor, # camera view matrix
+) -> Tensor:
     # project a 3d [x, y, z] point from world space to screen space [u, v]
-    return intrinsic_matrix @ extrinsic @ [x, y, z, 1].T
+    # Expand point to 4 dimensions [x, y, z, 1] for matrix multiplication
+    return view @ Tensor([*point, 1])
 
-
-def project():
-    # project a 2d [u, v] point from screen space top world space
+def ray(
+    point: Tensor, # 2d point in screen space [u, v]
+    view: Tensor, # camera view matrix 4x4
+) -> Tensor:
+    # calculate ray given a 2d [u, v] point in screen space and a camera position in world space
     pass
 
-
-def project_splat():
-    # project a splat from world space to screen space
+def distance_to_ray(
+    point: Tensor, # 3d point in world space [x, y, z]
+    ray: Tensor, # ray in world space
+) -> Tensor:
+    # Calculates 3d distance from a point to a ray
     pass
 
-
-def view_matrix():
-    # compute view matrix from camera parameters
-    pass
-
-
-def render(
-    M: Tensor,  # RS, where R is rotation and S is scale
-    S: Tensor,  # covariances
-    C: Tensor,  # colors
-    A: Tensor,  # opacities
-    V: Tensor,  # view matrix
-    w: int = 256,  # image width
-    h: int = 256,  # image height
-):
-    """Render an image from the scene."""
-    # TODO: See Algo 2
-    # split the screen into tiles (16x16)
-    # cull gaussians using view frustum
-
-    # project gaussians to screenspace
-    M_proj, S_proj = project(M, S, V)
-
-    # Initialize tiles
-    T = init_tiles()
-
-    # sort gaussians by view-space depth (each tile on one thread) using GPU Radix sort
-    # TODO: See algo 2 duplicatewithkeys, sortbykeys, identifytileranges
-
-    # alpha blend gaussians to get final pixel values for tile
-    I: np.ndarray = None  # rendered image
-    for tile in tiles:
-        for pixel in tile:
-            I[pixel] = alphablend()
-
-    return I
+def gaussian(x: float, mu: float, sigma: float) -> Tensor:
+    # general formulation of 1D Gaussian distribution, aka Normal distribution, aka Bell curve
+    return 1.0 / (sigma * Tensor([math.sqrt(2 * math.pi)])) * (- (x - mu)**2 / (2 * sigma**2)).exp()
 
 
-@dataclass
-class Camera:
-    R: np.array  # Rotation matrix (3x3)
-    T: np.array  # Translation vector (3x1)
-    fov_x: float  # Horizontal field of view in radians
-    fov_y: float  # Vertical field of view in radians
-    w: int  # Image width in pixels
-    h: int  # Image height in pixels
-    z_near: float  # Clipping plane near (anything closer than this is clipped)
-    z_far: float  # Clipping plane far (anything farther than this is clipped)
-
-
-class GaussianSplat:
+class GaussianCloud:
     def __init__(
         self,
         num_points: int,
     ):
-        self.position = Tensor.scaled_uniform(num_points, 3)
-        self.color = Tensor.scaled_uniform(num_points, 3)
-        self.rotations = Tensor.scaled_uniform(num_points, 4)
-        self.scales = Tensor.scaled_uniform(num_points, 3)
-        self.covariances = Tensor.scaled_uniform(num_points, 3)
-        self.opacities = Tensor.scaled_uniform(num_points, 1)
+        self.mu = Tensor.normal(num_points, 3, mean=0.0, std=1.0) # Center of each gaussian
+        self.std = Tensor.normal(num_points, 3, mean=0.0, std=1.0) # Standard deviation of each gaussian
+        self.rgb = Tensor.uniform(num_points, 3, low=0, high=256) # Color of each gaussian
 
     def forward(self, x):
         # render 2D image from a specific viewpoint
         # for each pixel in the image
-        # calculate ray
+            # ray from camera center to plane that is focal length away
+        
+            # for every gaussian in scene
+            #   distance from gaussian to ray
+
+            # clip gaussians by 
+
+            # sum all colors based on transparency along sorted view direction
+        
+        # final image from viewpoint
         return x
 
 
@@ -159,9 +118,7 @@ def make_batch(images, views):
 
 def make_labels(bs, col, val=-2.0):
     y = np.zeros((bs, 2), np.float32)
-    y[
-        range(bs), [col] * bs
-    ] = val  # Can we do label smoothing? i.e -2.0 changed to -1.98789.
+    y[range(bs), [col] * bs] = val  # Can we do label smoothing? i.e -2.0 changed to -1.98789.
     return Tensor(y)
 
 
