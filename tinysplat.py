@@ -41,13 +41,11 @@ def translation(tx: float, ty: float, tz: float) -> Tensor:
     return Tensor([[1, 0, 0, tx], [0, 1, 0, ty], [0, 0, 1, tz], [0, 0, 0, 1]])
 
 def intrinsic(
-    focal: float,  # Focal length of camera in meters
-    px: float,  # Pixel scaling factor in the x direction
-    py: float,  # Pixel scaling factor in the y direction
-    cx: float,  # Principal point offset in the x direction
-    cy: float,  # Principal point offset in the y direction
+    focal: float = 0.07,  # Focal length of camera in pixel units
+    cx: float = 256,  # Principal point offset in the x direction in pixel units
+    cy: float = 256,  # Principal point offset in the y direction pixel units
 ) -> Tensor:
-    return Tensor([[f / px, 0, cx, 0], [0, f / py, cy, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+    return Tensor([[f, 0, cx, 0], [0, f, cy, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
 
 def extrinsic() -> Tensor:
