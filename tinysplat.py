@@ -42,7 +42,7 @@ def make_intrinsic(
     cx: float = 256,  # Principal point offset in the x direction in pixel units
     cy: float = 256,  # Principal point offset in the y direction pixel units
 ) -> Tensor:
-    return Tensor([[f, 0, cx, 0], [0, f, cy, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+    return Tensor([[focal, 0, cx, 0], [0, focal, cy, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
 def make_extrinsic() -> Tensor:
     # TODO: These should come from the LMM. Text input and rotation, translation matrix output, which would be used here.
@@ -71,7 +71,7 @@ def make_ray(
     # Un-project the screen space point to world space
     world_point = Tensor.inv(view) @ Tensor([*point, 1, 1])
     # The ray direction would be this world_point minus the camera's position
-    ray_origin = extrinsic[0:3, 3]
+    ray_origin = view[0:3, 3]
     ray_direction = (world_point[0:3] - ray_origin)
     ray_direction = ray_direction / ray_direction.norm()
     return ray_origin, ray_direction
@@ -112,22 +112,22 @@ class GaussianCloud:
         image_height: int,  # image height in pixels
     ) -> Tensor:
         # render 2D image from a specific viewpoint
-        image = Tensor.zeros(width, height, 3)
+        image = Tensor.zeros(image_width, image_height, 3)
         # for each pixel in image
-        for u in range(width):
-            for v in range(height):
+        for u in range(image_width):
+            for v in range(image_height):
                 # ray from camera center to plane that is focal length away
                 ray_origin, ray_direction = make_ray([u, v], view)
                 color = Tensor([0, 0, 0])
                 # for every gaussian in scene
                 for i in range(self.num_points):
                     # distance from ray to gaussian
-                    alpha = distance_to_ray(self.mu[i], ray_origin, ray_direction)
+                    alpha = distance_to_ray(self.pos[i], ray_origin, ray_direction)
                     # sample color from gaussian
-                    color += gaussian(alpha, self.mu[i], self.std[i]) * self.rgb[i]
+                    color += gaussian(alpha, self.pos[i], self.std[i]) * self.rgb[i]
 
                 # Normalize color and clip to 0-255
-                image[x, y] = color / color.max() * 255
+                image[u, v] = color / color.max() * 255
 
                 # TODO: This is a gross oversimplification. Normally this requires sorting the gaussians by distance to the camera.
                 # and then summing the colors based on transparency.
@@ -179,10 +179,10 @@ def train(
         image_gt, view = next_batch()
         optimizer.zero_grad()
         image = cloud.forward(view)
-        loss = loss(image, image_gt)
-        loss.backward()
+        loss_value = loss(image, image_gt)
+        loss_value.backward()
         optimizer.step()
-        print(f"loss: {loss.data}")
+        print(f"loss: {loss_value.data}")
         cloud.prune()
         cloud.densify()
 
