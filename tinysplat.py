@@ -57,26 +57,36 @@ def make_view(
     return intrinsic @ extrinsic
 
 def project(
-    point: Tensor,  # 3d point in world space [x, y, z]
-    view: Tensor,  # camera view matrix
+    point: Tensor,  # 3d point in world space [x, y, z] (1,3)
+    view: Tensor,  # camera view matrix (4,4)
 ) -> Tensor:
     # project a 3d [x, y, z] point from world space to screen space [u, v]
     # Expand point to 4 dimensions [x, y, z, 1] for matrix multiplication
     return view @ Tensor([*point, 1])
 
-def ray(
+def make_ray(
     point: Tensor,  # 2d point in screen space [u, v]
-    extrinsic: Tensor,  # camera extrinsic matrix 4x4
-) -> Tensor:
-    # calculate ray given a 2d [u, v] point in screen space and a camera position in world space
-    pass
+    view: Tensor,  # camera view matrix (4,4)
+) -> dict:
+    # Un-project the screen space point to world space
+    world_point = Tensor.inv(view) @ Tensor([*point, 1, 1])
+    # The ray direction would be this world_point minus the camera's position
+    ray_origin = extrinsic[0:3, 3]
+    ray_direction = (world_point[0:3] - ray_origin)
+    ray_direction = ray_direction / ray_direction.norm()
+    return ray_origin, ray_direction
 
 def distance_to_ray(
     point: Tensor,  # 3d point in world space [x, y, z]
-    ray: Tensor,  # ray in world space
+    ray_origin: Tensor,  # ray's origin in world space
+    ray_direction: Tensor  # ray's normalized direction in world space
 ) -> Tensor:
-    # Calculates 3d distance from a point to a ray
-    pass
+    # Calculate the vector from the ray's origin to the point
+    AP = point - ray_origin
+    # Compute the distance using cross product
+    cross_product = Tensor.cross(AP, ray_direction)
+    distance = cross_product.norm()
+    return distance
 
 def gaussian(x: float, mu: float, sigma: float) -> Tensor:
     # general formulation of 1D Gaussian distribution, aka Normal distribution, aka Bell curve
@@ -86,11 +96,14 @@ def gaussian(x: float, mu: float, sigma: float) -> Tensor:
 class GaussianCloud:
     def __init__(
         self,
-        num_points: int,
+        num_points: int, # Number of gaussians in the cloud
+        std: float = 0.1, # Standard deviation of each gaussian (in meters)
     ):
-        self.mu = Tensor.normal(num_points, 3, mean=0.0, std=1.0) # Center of each gaussian
-        self.std = Tensor.normal(num_points, 3, mean=0.0, std=1.0) # Standard deviation of each gaussian
+        self.num_points = num_points
+        self.pos = Tensor.normal(num_points, 3, mean=0.0, std=1.0) # Center of each gaussian
         self.rgb = Tensor.uniform(num_points, 3, low=0, high=256) # Color of each gaussian
+        # TODO: gaussian is 1D right now for simplicity, but should be 3D via covariance matrix
+        self.std = Tensor.fill(num_points, 1, std) # Standard deviation of each gaussian
 
     def forward(
         self,
@@ -101,13 +114,18 @@ class GaussianCloud:
         # render 2D image from a specific viewpoint
         image = Tensor.zeros(width, height, 3)
         # for each pixel in image
-        for x in range(width):
-            for y in range(height):
+        for u in range(width):
+            for v in range(height):
                 # ray from camera center to plane that is focal length away
+                ray_origin, ray_direction = make_ray([u, v], view)
 
                 cumulative_color = Tensor([0, 0, 0])
                 # for every gaussian in scene
+                for i in range(self.num_points):
+                    # distance from ray to gaussian
+                    alpha = distance_to_ray(self.mu[i], ray_origin, ray_direction)
                     # sample color from gaussian
+
                     # alpha is distance from ray to gaussian
 
                 # Can the sorting be done using the camera position and each axis separately? Can this be cached?
