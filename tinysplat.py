@@ -1,3 +1,5 @@
+from typing import Callable
+
 from tinygrad.helpers import getenv
 from tinygrad.nn import optim
 from tinygrad.nn.state import get_parameters
@@ -69,11 +71,12 @@ def make_ray(
     view: Tensor,  # camera view matrix (4,4)
 ) -> dict:
     # Un-project the screen space point to world space
-    world_point = Tensor.inv(view) @ Tensor([*point, 1, 1])
+    # world_point = Tensor.inv(view) @ Tensor([*point, 1, 1])
+    world_point = view @ Tensor([*point, 1, 1])
     # The ray direction would be this world_point minus the camera's position
     ray_origin = view[0:3, 3]
     ray_direction = (world_point[0:3] - ray_origin)
-    ray_direction = ray_direction / ray_direction.norm()
+    ray_direction = ray_direction / ray_direction.normalized()
     return ray_origin, ray_direction
 
 def distance_to_ray(
@@ -85,7 +88,7 @@ def distance_to_ray(
     AP = point - ray_origin
     # Compute the distance using cross product
     cross_product = Tensor.cross(AP, ray_direction)
-    distance = cross_product.norm()
+    distance = cross_product.normalized()
     return distance
 
 def gaussian(x: float, mu: float, sigma: float) -> Tensor:
@@ -103,13 +106,13 @@ class GaussianCloud:
         self.pos = Tensor.normal(num_points, 3, mean=0.0, std=1.0) # Center of each gaussian
         self.rgb = Tensor.uniform(num_points, 3, low=0, high=256) # Color of each gaussian
         # TODO: gaussian is 1D right now for simplicity, but should be 3D via covariance matrix
-        self.std = Tensor.fill(num_points, 1, std) # Standard deviation of each gaussian
+        self.std = Tensor.full((num_points, 1), std) # Standard deviation of each gaussian
 
     def forward(
         self,
         view: Tensor,  # camera view matrix
-        image_width: int,  # image width in pixels
-        image_height: int,  # image height in pixels
+        image_width: int = 512,  # image width in pixels
+        image_height: int = 512,  # image height in pixels
     ) -> Tensor:
         # render 2D image from a specific viewpoint
         image = Tensor.zeros(image_width, image_height, 3)
