@@ -118,24 +118,23 @@ class GaussianCloud:
             for v in range(height):
                 # ray from camera center to plane that is focal length away
                 ray_origin, ray_direction = make_ray([u, v], view)
-
-                cumulative_color = Tensor([0, 0, 0])
+                color = Tensor([0, 0, 0])
                 # for every gaussian in scene
                 for i in range(self.num_points):
                     # distance from ray to gaussian
                     alpha = distance_to_ray(self.mu[i], ray_origin, ray_direction)
                     # sample color from gaussian
+                    color += gaussian(alpha, self.mu[i], self.std[i]) * self.rgb[i]
 
-                    # alpha is distance from ray to gaussian
+                # Normalize color and clip to 0-255
+                image[x, y] = color / color.max() * 255
 
+                # TODO: This is a gross oversimplification. Normally this requires sorting the gaussians by distance to the camera.
+                # and then summing the colors based on transparency.
                 # Can the sorting be done using the camera position and each axis separately? Can this be cached?
                 # sum all colors based on transparency along sorted view direction
+                #TODO: Alternatively differentiable depth peeling
 
-                # set pixel color to cumulative color
-                image[x, y] = cumulative_color
-
-        #TODO: Alternatively differentiable depth peeling
-        
         return image
 
     def prune(self):
