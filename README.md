@@ -28,6 +28,10 @@ https://ode.rsl.wustl.edu/mars/productsearch
 
 Conclusion: these datasets are too huge, millions of images and they are reaaaally zoomed in (most seem to have perspective transforms already applied). I need something smaller.
 
+### Multiview Datasets
+
+https://github.com/facebookresearch/Neural_3D_Video
+
 ### Algos from original paper
 
 https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
@@ -35,3 +39,7 @@ https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
 ![Alt text](assets/algo1.png)
 
 ![Alt text](assets/algo2.png)
+
+Depth peeling for rendering
+
+https://arxiv.org/pdf/2310.11448.pdf
